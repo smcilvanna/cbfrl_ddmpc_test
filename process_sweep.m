@@ -3,25 +3,16 @@
 
 clear
 
+folderPath = uigetdir;  % Specify the folder containing the .mat files
+matFiles = dir(fullfile(folderPath, '*.mat')); % Get a list of all .mat files in the folder
+matFilePaths = cell(1, length(matFiles)); % Initialize a cell array to hold the file paths
 
-% Specify the folder containing the .mat files
-folderPath = pwd;
-
-% Get a list of all .mat files in the folder
-matFiles = dir(fullfile(folderPath, '*.mat'));
-
-% Initialize a cell array to hold the file paths
-matFilePaths = cell(1, length(matFiles));
-
-% Loop through each file and get its full path
-for k = 1:length(matFiles)
+for k = 1:length(matFiles)  % Loop through each file and get its full path 
     matFilePaths{k} = fullfile(folderPath, matFiles(k).name);
 end
 
 matFilePaths = matFilePaths';
-
 clearvars -except matFilePaths
-
 
 %% Loop Through .mat files and get best values for each #min sep only ##OLD
 
@@ -48,10 +39,10 @@ figure
 scatter(x,y, 5, "filled")
 title("MPC-CBF Minimum Seperation Parameter Values")
 
-%% Loop through .mat files, process with reward function
+%% Loop through .mat files, process with reward function 1
 
 
-output_name = 'plot_sweep.gif';
+output_name = './outputs/plot_sweep.gif';
 if exist("output_name", "file")
     disp("Warning, will overwrite existing file, ENTER > CONTINUE | CTRL + C > CANCEL");
     delete(output_name);
