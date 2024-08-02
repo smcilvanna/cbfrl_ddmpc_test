@@ -42,12 +42,12 @@ title("MPC-CBF Minimum Seperation Parameter Values")
 %% Loop through .mat files, process with reward function 1
 
 
-output_name = './outputs/plot_sweep.gif';
-if exist("output_name", "file")
-    disp("Warning, will overwrite existing file, ENTER > CONTINUE | CTRL + C > CANCEL");
+output_name = '/home/sm/Documents/MATLAB/cbfrl/cbfrl_ddmpc_test/outputs/gifs/plot_sweep.gif';
+if exist(output_name, "file")
+    input("Warning, will overwrite existing file, ENTER > CONTINUE | CTRL + C > CANCEL");
     delete(output_name);
 end
-all_obstacles = [];
+best_cbf = [];
 
 for i = 1:size(matFilePaths,1)
 
@@ -56,19 +56,37 @@ for i = 1:size(matFilePaths,1)
     load(matFilePaths{i}, "all_data")
     this_obstacle = all_data_rf1(all_data);
 
-    exportgraphics(plot_run(this_obstacle), output_name, Append=true)
+    %exportgraphics(plot_run(this_obstacle), output_name, Append=true)
 
-    all_obstacles = [ all_obstacles ; this_obstacle ];
+    % all_obstacles = [ all_obstacles ; this_obstacle ];
+
+    % Get CBF value that completes with min distance
+    [~, ridx] = min(this_obstacle.dist);    % Find the table index for min dist
+    best_cbf = [ best_cbf ; [this_obstacle.obs(ridx) , this_obstacle.cbf(ridx) , this_obstacle.dist(ridx)] ];
 
 
 end
-clearvars -except all_obstacles matFilePaths this_obstacle
 
 
-%%
+%% Plot the best cbf points
+
+x = best_cbf(:,1);
+y = best_cbf(:,2);
+
+p = polyfit(x, y, 2); % p contains the slope and intercept
+y_fit = polyval(p, x);
 
 
-x = all_data_rf1(all_data);
+figure;
+plot(x, y, 'o'); % Plot original data points
+hold on;
+plot(x, y_fit, '-r'); % Plot fitted line
+
+title("Optimal CBF Values vs Obstacle Radius");
+xlabel("Obstacle Radius (m)");
+ylabel("CBF Value")
+legend('Data', 'Fitted curve');
+
 
 %%
 
@@ -169,14 +187,20 @@ function all_runs = all_data_rf1(all_data)
     
     for i = 1:num_runs                  % loop around all_data rows, each row tests different cbf value for the obstacle size
     
-            
+        % Read context of this run
         state = all_data(i).state.Data;                 
         cbf = all_data(i).cbfval;                       % Read the cbf parameter value applied for this run
         pos = state(:,1:2);
         t_sep = sqrt(sum((pos -p_obs).^2,2));
         min_sep = min(t_sep) - r_obs - r_rob;           % Calculate the minimium seperation disance on this run
+        
+        end_state = state(end,1:2);
+        ent_target = [0  10];
+        end_sep = norm(ent_target-end_state);
 
-        if min_sep > 0                                  % If no collision calculate the total distance travelled
+
+
+        if min_sep > 0 && end_sep < 0.3                 % If no collision calculate the total distance travelled
             distances = sqrt(sum(diff(pos).^2, 2));     % Calculate Euclidean distances between consecutive points
             total_distance = sum(distances);            % Sum the distances to get the total distance
         else
@@ -206,23 +230,41 @@ function all_runs = all_data_rf1(all_data)
 end
 
 
-%%
+%% Plot single obstacle results - cbf value vs distance travelled
 
 function fig = plot_run(this_obstacle)
 
     % Filter out cbf values > 1.5
-    this_obstacle = this_obstacle(this_obstacle.cbf <= 1.5, :);
+    this_obstacle = this_obstacle(this_obstacle.cbf <= 1.0, :);
 
+
+    % Create figure object
     fig = figure(Visible="off");
     
-    x = this_obstacle.cbf;
-    y = this_obstacle.dist;
-    obs = sprintf('%.2f', this_obstacle.obs(3));
+    x = this_obstacle.cbf;      % x axis is cbf values
+    y = this_obstacle.dist;     % y axis is path distance
+    y(isnan(y)) = -1;           % Change NaN values to negative for plotting
+    idxBad = y <= 0;
+    idxGood = y > 0;
     
-    y(isnan(y)) = -1;
+    obs = sprintf('%.2f', this_obstacle.obs(3));    % read the object size for title
     
-    scatter(x,y, 5, "filled")
+
+    scatter(x(idxBad), y(idxBad), 5, 'r', 'filled');    % plot the bad
+    hold on
+    scatter(x(idxGood), y(idxGood), 5, 'b', 'filled');  % plot the good
+
     
+    % highlight min distance point
+    [~, ridx] = min(this_obstacle.dist);    % Find the table index for min dist
+    x = this_obstacle.cbf(ridx);            
+    y = this_obstacle.dist(ridx);
+
+    % scatter(x,y,10,'r',"filled","x");
+    scatter(x,y,50, "green", "filled");
+    hold off
+
+
     xlabel("CBF value")
     ylabel("Distance Travelled (m)")
     title("Obstacle Radius " + obs + "m")
