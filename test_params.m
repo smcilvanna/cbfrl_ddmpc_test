@@ -1,7 +1,10 @@
-function test_params(obs_radius)
+function test_params(obs_radius, test_param_set)
 
-    test_param_set = [0.01 :0.01: 5.00]';
-    all_data = [];
+    if isempty(test_param_set)
+        test_param_set = [0.01 :0.01: 5.00]';
+    end
+        
+        all_data = [];
     
     % obs_radius = 1.0;
 
