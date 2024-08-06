@@ -78,7 +78,7 @@ y_fit = polyval(p, x);
 
 
 figure;
-plot(x, y, 'o'); % Plot original data points
+plot(x, y, '*'); % Plot original data points
 hold on;
 plot(x, y_fit, '-r'); % Plot fitted line
 
