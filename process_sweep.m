@@ -56,7 +56,7 @@ for i = 1:size(matFilePaths,1)
     load(matFilePaths{i}, "all_data")
     this_obstacle = all_data_rf1(all_data);
 
-    %exportgraphics(plot_run(this_obstacle), output_name, Append=true)
+    exportgraphics(plot_run(this_obstacle), output_name, Append=true)
 
     % all_obstacles = [ all_obstacles ; this_obstacle ];
 
@@ -84,8 +84,21 @@ plot(x, y_fit, '-r'); % Plot fitted line
 
 title("Optimal CBF Values vs Obstacle Radius");
 xlabel("Obstacle Radius (m)");
-ylabel("CBF Value")
+% ylabel("CBF Value")
 legend('Data', 'Fitted curve');
+
+
+yticks = get(gca, 'YTick'); % Get the current y-tick values
+
+% Create new labels by dividing each tick value by 10^-2 and appending the exponent
+new_labels = arrayfun(@(val) sprintf('%.2f', val/10^-2), yticks, 'UniformOutput', false);
+
+% Set the new y-tick labels
+set(gca, 'YTickLabel', new_labels);
+
+% Add y-axis label with exponent
+ylabel('CBF Value (x10^{-2})');
+
 
 
 %%
