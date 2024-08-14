@@ -1,106 +1,102 @@
-%% Read all .mat files in directory 
-% ### CURRENT PATH MUST BE .mat DIR
+%% Process all runs with rf1
+clc
+outen = false; % <<<<<<<<<<<<<<<<<<<<<<<<<############# SET 'false' to bypass output gif file
+matFilePaths = get_mat_dir;
 
-clear
-
-folderPath = uigetdir;  % Specify the folder containing the .mat files
-matFiles = dir(fullfile(folderPath, '*.mat')); % Get a list of all .mat files in the folder
-matFilePaths = cell(1, length(matFiles)); % Initialize a cell array to hold the file paths
-
-for k = 1:length(matFiles)  % Loop through each file and get its full path 
-    matFilePaths{k} = fullfile(folderPath, matFiles(k).name);
+if outen 
+    output_name = '/home/sm/Documents/MATLAB/cbfrl/cbfrl_ddmpc_test/outputs/gifs/plot_sweep.gif';
+    if exist(output_name, "file")
+        input("Warning, will append existing file, ENTER > CONTINUE | CTRL + C > CANCEL");
+        delete(output_name);
+    end
 end
 
-matFilePaths = matFilePaths';
-clearvars -except matFilePaths
-
-%% Loop Through .mat files and get best values for each #min sep only ##OLD
-
-all_best_cbf = [];
-
-for i = 1:size(matFilePaths,1)
-
-    disp(matFilePaths{i});
-
-    load(matFilePaths{i}, "all_data")
-    best_cbf = all_data_best_cbf(all_data);
-
-    all_best_cbf = [ all_best_cbf ; best_cbf ];
-
-
-end
-
-%% Plot best cbf minsep results
-
-x = all_best_cbf.obs
-y = all_best_cbf.CBF
-
-figure
-scatter(x,y, 5, "filled")
-title("MPC-CBF Minimum Seperation Parameter Values")
-
-%% Loop through .mat files, process with reward function 1
-
-
-output_name = '/home/sm/Documents/MATLAB/cbfrl/cbfrl_ddmpc_test/outputs/gifs/plot_sweep.gif';
-if exist(output_name, "file")
-    input("Warning, will overwrite existing file, ENTER > CONTINUE | CTRL + C > CANCEL");
-    delete(output_name);
-end
 best_cbf = [];
-
 for i = 1:size(matFilePaths,1)
-
     disp(matFilePaths{i});
-
     load(matFilePaths{i}, "all_data")
     this_obstacle = all_data_rf1(all_data);
-
-    exportgraphics(plot_run(this_obstacle), output_name, Append=true)
-
+    if outen
+        exportgraphics(plot_run(this_obstacle), output_name, Append=true)
+    end
     % all_obstacles = [ all_obstacles ; this_obstacle ];
-
     % Get CBF value that completes with min distance
     [~, ridx] = min(this_obstacle.dist);    % Find the table index for min dist
     best_cbf = [ best_cbf ; [this_obstacle.obs(ridx) , this_obstacle.cbf(ridx) , this_obstacle.dist(ridx)] ];
+end
+plot_best_cbf(best_cbf)
 
+% ####################################################################################################################################
+%%
+plot_best_cbf(best_cbf)
+% ####################################################################################################################################
+%% Loop through .mat files, process with modified rf1
+best_cbf = [];
+all_tests = [];
+for i = 1:size(matFilePaths,1)
+    disp(matFilePaths{i});
+    load(matFilePaths{i}, "all_data")
+    this_obstacle = all_data_rf1_full(all_data);
+    all_tests = [ all_tests ; this_obstacle];
+end
+% ####################################################################################################################################
+%% Plot Trajectory for all runs in sweep
+
+
+p_obs = [0.1, 4.7];
+r_obs = all_data(1).obs(3);
+r_rob = 0.25;
+output_name = 'plt.gif';
+
+for i = 1:size(all_data,1)
+
+    state = all_data(i).state.Data;
+    cbf = all_data(i).cbfval;
+    
+
+
+
+    tolerance = 1e-6;
+    T = this_obstacle;
+    row_idx = (abs(T.cbf - cbf) < tolerance ) & (abs(T.obs - r_obs) < tolerance);
+    
+    if size(T,1) == 1
+        T = T(row_idx,:);
+    else
+        disp(T);
+        input("Multiple results found in table, taking the first row")
+        T = T(row_idx,1);
+    end
+
+    % Get min sep
+    min_sep = T.minsep;
+    end_sep = T.endsep;
+
+
+    txt_sep = sprintf('%.3f', min_sep);
+
+
+    line_color = [0 0 1];
+    if min_sep <= 0
+        line_color = [1 0 0];
+    end
+
+    f1 = figure(Visible="off");
+    x = state(:,1); y = state(:,2); w = state(:,3);
+    plot(x, y, LineWidth=2, Color=line_color);
+    xlabel("x-pos(m)");     ylabel("y-pos(m)");
+    xlim([-6 6]);           ylim([-1 11]);
+    ttxt = "MPC-CBF : Parameter Value " + cbf + "Min Seperation " + txt_sep + "m" ;
+    title(ttxt);
+    hold on;
+    viscircles([0.1 4.7], r_obs);
+    
+    exportgraphics(f1, output_name, Append=true);
+    
+    disp(i);
 
 end
 
-
-%% Plot the best cbf points
-
-x = best_cbf(:,1);
-y = best_cbf(:,2);
-
-p = polyfit(x, y, 2); % p contains the slope and intercept
-y_fit = polyval(p, x);
-
-
-figure;
-plot(x, y, '*'); % Plot original data points
-hold on;
-plot(x, y_fit, '-r'); % Plot fitted line
-
-title("Optimal CBF Values vs Obstacle Radius");
-xlabel("Obstacle Radius (m)");
-% ylabel("CBF Value")
-legend('Data', 'Fitted curve');
-
-
-yticks = get(gca, 'YTick'); % Get the current y-tick values
-
-% Create new labels by dividing each tick value by 10^-2 and appending the exponent
-new_labels = arrayfun(@(val) sprintf('%.2f', val/10^-2), yticks, 'UniformOutput', false);
-
-% Set the new y-tick labels
-set(gca, 'YTickLabel', new_labels);
-
-% Add y-axis label with exponent
-ylabel('CBF Value (x10^{-2})');
-
-
-
 %%
 
 
@@ -130,11 +126,26 @@ ylabel('CBF Value (x10^{-2})');
 
 
 
-%%
 
-%%
+
 
 %% LOCAL FUNCTIONS
+%% Function : get_mat_dir() - Read all .mat files in directory 
+% UI will prompt for source directory
+
+function matFilePaths = get_mat_dir()
+
+    folderPath = uigetdir;  % Specify the folder containing the .mat files
+    matFiles = dir(fullfile(folderPath, '*.mat')); % Get a list of all .mat files in the folder
+    matFilePaths = cell(1, length(matFiles)); % Initialize a cell array to hold the file paths
+    
+    for k = 1:length(matFiles)  % Loop through each file and get its full path 
+        matFilePaths{k} = fullfile(folderPath, matFiles(k).name);
+    end
+    
+    matFilePaths = matFilePaths';
+
+end
 %% Rank based on minimum seperation
 % Not a great metric, path could still be very long with very small min sep
 
@@ -179,7 +190,6 @@ end
 %% Rank based on Reward Function
 % Reward function based on the total distance travelled
 
-
 function all_runs = all_data_rf1(all_data)
 
     r_rob = 0.25;
@@ -205,15 +215,13 @@ function all_runs = all_data_rf1(all_data)
         cbf = all_data(i).cbfval;                       % Read the cbf parameter value applied for this run
         pos = state(:,1:2);
         t_sep = sqrt(sum((pos -p_obs).^2,2));
-        min_sep = min(t_sep) - r_obs - r_rob;           % Calculate the minimium seperation disance on this run
+        min_sep = min(t_sep) - r_obs - r_rob;           % Calculate the minimium seperation disance on this run        
         
-        end_state = state(end,1:2);
-        ent_target = [0  10];
-        end_sep = norm(ent_target-end_state);
+        end_state = state(end,1:2);                     % Get state at end of run
+        end_target = [0  10];                           % End target 
+        end_sep = norm(end_target-end_state);           % End seperation - use to filter conservative runs
 
-
-
-        if min_sep > 0 && end_sep < 0.3                 % If no collision calculate the total distance travelled
+        if min_sep > 0 && end_sep < 0.3*r_obs           % If no collision calculate the total distance travelled # modify to add r_obs to relax end target on larger obstacles
             distances = sqrt(sum(diff(pos).^2, 2));     % Calculate Euclidean distances between consecutive points
             total_distance = sum(distances);            % Sum the distances to get the total distance
         else
@@ -229,16 +237,6 @@ function all_runs = all_data_rf1(all_data)
 
     all_runs.obs = repmat(r_obs, height(all_runs), 1);
 
-    % % Filter the table to include only rows where MinSep > 0
-    % filtered_table = all_runs(all_runs.minsep > 0, :);
-    % 
-    % % Sort the filtered table based on the distance column in ascending order
-    % sorted_table = sortrows(filtered_table, 'dist');
-    % 
-    % % Select the first n rows of the sorted table
-    % best_cbf = sorted_table(1:min(20, height(sorted_table)), :);
-    % 
-    % best_cbf.obs = repmat(r_obs, height(best_cbf), 1);
 
 end
 
@@ -284,3 +282,126 @@ function fig = plot_run(this_obstacle)
     subtitle("Negative distance indicates bad run")
 
 end
+
+
+
+
+
+
+%% Reward Function 1 - output more data
+% Same as rf1 but export data from all runs for further use
+% Investigate modifying end seperation for larger obstacles
+
+function all_runs = all_data_rf1_full(all_data)
+
+    r_rob = 0.25;
+    try
+        p_obs = all_data(1).obs(1:2);
+        r_obs = all_data(1).obs(3);
+    catch
+        p_obs = [0.1, 4.7];
+        r_obs = input("Need obstacle size for this one...");
+    end
+
+
+    
+    num_runs = size(all_data, 1);  % Number of iterations
+
+    % Preallocate an empty table with the same structure as `this_run`
+    all_runs = array2table(NaN(num_runs, 4), 'VariableNames', {'cbf', 'minsep', 'dist', 'endsep'});
+    
+    for i = 1:num_runs                  % loop around all_data rows, each row tests different cbf value for the obstacle size
+    
+        % Read context of this run
+        state = all_data(i).state.Data;                 
+        cbf = all_data(i).cbfval;                       % Read the cbf parameter value applied for this run
+        pos = state(:,1:2);
+        t_sep = sqrt(sum((pos -p_obs).^2,2));
+        min_sep = min(t_sep) - r_obs - r_rob;           % Calculate the minimium seperation disance on this run        
+        
+        end_state = state(end,1:2);                     % Get state at end of run
+        end_target = [0  10];                           % End target 
+        end_sep = norm(end_target-end_state);           % End seperation - use to filter conservative runs
+
+        % Modified from rf1 - this will record total distance regardless
+        % of collision or end sep
+        distances = sqrt(sum(diff(pos).^2, 2));     % Calculate Euclidean distances between consecutive points
+        total_distance = sum(distances);            % Sum the distances to get the total distance
+    
+        % Write results from this run to table
+        all_runs.cbf(i) = cbf;
+        all_runs.minsep(i) = min_sep;
+        all_runs.dist(i) = total_distance;
+        all_runs.endsep(i) = end_sep;
+
+    end
+
+    all_runs.obs = repmat(r_obs, height(all_runs), 1);
+
+
+end
+
+%% Function : plot_best_cbf() - Plot the best cbf points
+
+function plot_best_cbf(best_cbf)
+
+    x = best_cbf(:,1);
+    y = best_cbf(:,2);
+    p = polyfit(x, y, 2); % p contains the slope and intercept
+    y_fit = polyval(p, x);
+    figure;
+    plot(x, y, '*'); % Plot original data points
+    hold on;
+    plot(x, y_fit, '-r', LineWidth=1.3); % Plot fitted line
+
+    p = polyfit(x, y, 3); % p contains the slope and intercept
+    y_fit = polyval(p, x);
+    plot(x, y_fit, '-g', LineWidth=1.3); % Plot fitted line
+
+    title("Best Tested CBF Values vs Obstacle Radius");
+    %subtitle("CBF value step size : 0.0001")
+    xlabel("Obstacle Radius (m)");
+    % ylabel("CBF Value")
+    legend('Best Tested CBF', '2nd Order Fit', '3rd Order Fit');
+    yticks = get(gca, 'YTick'); % Get the current y-tick values
+    
+    % Create new labels by dividing each tick value by 10^-2 and appending the exponent
+    new_labels = arrayfun(@(val) sprintf('%.2f', val/10^-2), yticks, 'UniformOutput', false);
+    
+    % Set the new y-tick labels
+    set(gca, 'YTickLabel', new_labels);
+    
+    % Add y-axis label with exponent
+    ylabel('CBF Value (x10^{-2})');
+
+end
+
+
+%% OLD SECTIONS
+
+
+
+%% Loop Through .mat files and get best values for each #min sep only ##OLD
+% 
+% all_best_cbf = [];
+% 
+% for i = 1:size(matFilePaths,1)
+% 
+%     disp(matFilePaths{i});
+% 
+%     load(matFilePaths{i}, "all_data")
+%     best_cbf = all_data_best_cbf(all_data);
+% 
+%     all_best_cbf = [ all_best_cbf ; best_cbf ];
+% 
+% 
+% end
+% 
+% %% Plot best cbf minsep results #OLD
+% 
+% x = all_best_cbf.obs
+% y = all_best_cbf.CBF
+% 
+% figure
+% scatter(x,y, 5, "filled")
+% title("MPC-CBF Minimum Seperation Parameter Values")
