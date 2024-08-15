@@ -3,8 +3,7 @@ addpath("~/matlab/com/casadi/");
 % parameter sweep set in test_params
 % obs_test_set = [0.1 0.2 0.3 0.4 0.5 1.1 1.2 1.3 1.4 1.5 ]';
 % obs_test_set = [1.6 1.7 1.8 1.9 2.0]';
-
-obs_test_set = 0.6;
+%obs_test_set = 0.6;
 
 obs_test_set = [0.1:0.1:2.0]';
 
@@ -27,6 +26,7 @@ range_width = 0.1;
 range_n = 1000;
 
 best_cbf = best_cbf(~(any(isnan(best_cbf),2)),:); % remove NaNs
+best_cbf = best_cbf(:,1:2);
 
 for i = 1:size(best_cbf,1)
 
@@ -40,5 +40,20 @@ for i = 1:size(best_cbf,1)
     disp(dtxt)
 
     test_params(obs_radius,test_param_set)
+
+end
+
+
+
+
+%% v2 scenario - increase distance to target (20m) and obstacle (10m), also increase sim time max (40s)
+
+
+obs_test_set = [0.2 :0.2:3.0]';
+
+for i = 1:size(obs_test_set,1)
+    obs_radius = obs_test_set(i);
+
+    test_params(obs_radius);
 
 end

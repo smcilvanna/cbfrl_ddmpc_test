@@ -50,7 +50,7 @@ clearvars -except all_tests matFilePaths
 for i = 1:size(matFilePaths,1)
     disp(matFilePaths{i});
     load(matFilePaths{i}, "all_data");
-    if all_data(1).obs(3) >= 1.4    % set to zero normally, unless need to resume
+    if all_data(1).obs(3) >= 0    % set to zero normally, unless need to resume
         plot_obstacle_trjs(all_data, all_tests);
     end
 
@@ -370,7 +370,7 @@ function plot_obstacle_trjs(all_data, all_tests)
         state = all_data(i).state.Data;
         cbf = all_data(i).cbfval;
         
-        if cbf > 1.2
+        if false %cbf > 0.001
             if ~disp_fleg
                 disp("Stopping image generation at cbf values > 1.2")
                 disp_fleg = true;
