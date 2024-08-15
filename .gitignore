@@ -30,11 +30,16 @@ codegen/
 # Octave session info
 octave-workspace
 
-# Mat files
+# Project excluded files
 *.mat
+*.gif
+*.jpg
+*.png
+*.pdf
+*.eps
+*.fig
 
-
-# Project specific folders
+# Project excluded folders
 old/
 outputs/
 

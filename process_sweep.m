@@ -31,74 +31,32 @@ plot_best_cbf(best_cbf)
 plot_best_cbf(best_cbf)
 % ####################################################################################################################################
 %% Loop through .mat files, process with modified rf1
-best_cbf = [];
+matFilePaths = get_mat_dir;
 all_tests = [];
 for i = 1:size(matFilePaths,1)
     disp(matFilePaths{i});
     load(matFilePaths{i}, "all_data")
     this_obstacle = all_data_rf1_full(all_data);
     all_tests = [ all_tests ; this_obstacle];
+end; clearvars -except matFilePaths all_tests
+% ####################################################################################################################################
+
+%% Generate trajectory plots of all runs within .mat files
+% Need to have the all_tests object in workspace - generated section above
+
+clearvars -except all_tests matFilePaths
+% matFilePaths = get_mat_dir;
+
+for i = 1:size(matFilePaths,1)
+    disp(matFilePaths{i});
+    load(matFilePaths{i}, "all_data");
+    if all_data(1).obs(3) >= 1.4    % set to zero normally, unless need to resume
+        plot_obstacle_trjs(all_data, all_tests);
+    end
+
+
 end
 % ####################################################################################################################################
-%% Plot Trajectory for all runs in sweep
-
-
-p_obs = [0.1, 4.7];
-r_obs = all_data(1).obs(3);
-r_rob = 0.25;
-output_name = 'plt.gif';
-
-for i = 1:size(all_data,1)
-
-    state = all_data(i).state.Data;
-    cbf = all_data(i).cbfval;
-    
-
-
-
-    tolerance = 1e-6;
-    T = this_obstacle;
-    row_idx = (abs(T.cbf - cbf) < tolerance ) & (abs(T.obs - r_obs) < tolerance);
-    
-    if size(T,1) == 1
-        T = T(row_idx,:);
-    else
-        disp(T);
-        input("Multiple results found in table, taking the first row")
-        T = T(row_idx,1);
-    end
-
-    % Get min sep
-    min_sep = T.minsep;
-    end_sep = T.endsep;
-
-
-    txt_sep = sprintf('%.3f', min_sep);
-
-
-    line_color = [0 0 1];
-    if min_sep <= 0
-        line_color = [1 0 0];
-    end
-
-    f1 = figure(Visible="off");
-    x = state(:,1); y = state(:,2); w = state(:,3);
-    plot(x, y, LineWidth=2, Color=line_color);
-    xlabel("x-pos(m)");     ylabel("y-pos(m)");
-    xlim([-6 6]);           ylim([-1 11]);
-    ttxt = "MPC-CBF : Parameter Value " + cbf + "Min Seperation " + txt_sep + "m" ;
-    title(ttxt);
-    hold on;
-    viscircles([0.1 4.7], r_obs);
-    
-    exportgraphics(f1, output_name, Append=true);
-    
-    disp(i);
-
-end
-
-%%
-
 
 
 
@@ -303,8 +261,6 @@ function all_runs = all_data_rf1_full(all_data)
         r_obs = input("Need obstacle size for this one...");
     end
 
-
-    
     num_runs = size(all_data, 1);  % Number of iterations
 
     % Preallocate an empty table with the same structure as `this_run`
@@ -375,6 +331,93 @@ function plot_best_cbf(best_cbf)
     ylabel('CBF Value (x10^{-2})');
 
 end
+
+%%
+function drawCircle(x, y, radius, lineWidth, color)
+    % Function to draw a circle on a plot
+    % 
+    % Inputs:
+    %   x - X-coordinate of the center of the circle
+    %   y - Y-coordinate of the center of the circle
+    %   radius - Radius of the circle
+    %   lineWidth - Thickness of the circle's outline
+    %   color - Color of the circle's outline (e.g., 'r', 'g', 'b', etc.)
+    
+    % Number of points to define the circle
+    theta = linspace(0, 2*pi, 100);
+    
+    % Parametric equations for the circle
+    x_circle = radius * cos(theta) + x;
+    y_circle = radius * sin(theta) + y;
+    
+    % Plot the circle
+    plot(x_circle, y_circle, 'LineWidth', lineWidth, 'Color', color);
+end
+
+
+%% Plot Trajectory for each different obstacle runs in sweep
+
+function plot_obstacle_trjs(all_data, all_tests)
+    r_obs = all_data(1).obs(3);
+    output_name = "./obs_radius_" + sprintf('%.3f', r_obs) + ".gif";
+    %r_rob = 0.25;
+    %p_obs = [0.1, 4.7];    
+    runs = size(all_data,1);
+    disp_fleg = false;
+    
+    for i = 1:runs
+    
+        state = all_data(i).state.Data;
+        cbf = all_data(i).cbfval;
+        
+        if cbf > 1.2
+            if ~disp_fleg
+                disp("Stopping image generation at cbf values > 1.2")
+                disp_fleg = true;
+            end
+            continue
+        end
+    
+        tolerance = 1e-6;
+        row_idx = (abs(all_tests.cbf - cbf) < tolerance ) & (abs(all_tests.obs - r_obs) < tolerance);
+        T = all_tests(row_idx,:);
+    
+        if size(T,1) ~= 1    
+            disp(T);
+            input("Multiple results found in table, taking the first row")
+            T = T(row_idx,1);
+        end
+    
+        % Get min sep
+        min_sep = T.minsep;
+        end_sep = T.endsep;
+    
+        txt_sep = sprintf('%.3f', min_sep);
+    
+        line_color = [0 0 1];
+        if min_sep <= 0
+            line_color = [1 0 0];
+        end
+    
+        f1 = figure(Visible="off");
+        x = state(:,1); y = state(:,2); w = state(:,3);
+        plot(x, y, LineWidth=2, Color=line_color);
+        xlabel("x-pos(m)");     ylabel("y-pos(m)");
+        xlim([-6 6]);           ylim([-1 11]);
+        ttxt = "MPC-CBF : Parameter Value " + cbf + "Min Seperation " + txt_sep + "m" ;
+        title(ttxt);
+        hold on;
+        drawCircle(0.1, 4.7, r_obs, 2, 'r');                % add obstacle on plot       
+        exportgraphics(f1, output_name, Append=true);       % append to gif
+        dtxt = num2str(i)+" / " + num2str(runs);
+        disp(dtxt);
+    
+    end
+end
+
+
+
+
 
 
 %% OLD SECTIONS
