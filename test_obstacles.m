@@ -39,7 +39,7 @@ for i = 1:size(best_cbf,1)
     dtxt = "Starting test " + num2str(obs_radius) + "m obstacle.  Previous best cbf : " + num2str(cbf_mid) + ". Starting with " + params_start ;
     disp(dtxt)
 
-    test_params(obs_radius,test_param_set)
+    test_params(obs_radius, param_test_set)
 
 end
 
