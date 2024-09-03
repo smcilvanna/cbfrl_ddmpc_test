@@ -1,4 +1,4 @@
-%% Process all runs with rf1
+%% Process all runs with rf1 (distance based reward only)
 clc
 outen = false; % <<<<<<<<<<<<<<<<<<<<<<<<<############# SET 'false' to bypass output gif file
 matFilePaths = get_mat_dir;
@@ -60,18 +60,41 @@ end
 
 
 
+%% Generate Reward Function Surface
+% x = cbf value     y = obstacle size   z = reward
 
+matFilePaths = get_mat_dir;
+this_obstacle = [];                                         % empty table/list objects
+all_obstacles = [];
+for i = 1:size(matFilePaths,1)                              % loop through mat files
+    disp(matFilePaths{i});                                      % console print to track progress
+    load(matFilePaths{i}, "all_data")                           % load the mat file                
+    this_obstacle = all_data_rf1(all_data);                     % create the table of parameters tested for this obstacle
+    min_dist = min(this_obstacle.dist);                         % find the minimum distance for this obstacle (bad runs are NaN)
+    this_obstacle.reward = min_dist ./ this_obstacle.dist;      % convert to reward with best as 1
+    this_obstacle.reward(isnan(this_obstacle.reward)) = - 0.15;    % bad run penalty
+    all_obstacles = [ all_obstacles ; this_obstacle ] ;         % add to master list
+end
 
+%%
+close all
+all_obstacles = all_obstacles(all_obstacles.cbf <= 1.5, :);
 
+x = all_obstacles.obs;
+y = all_obstacles.cbf;
+z = all_obstacles.reward;
+z(z > 0) = z(z > 0).^12;
 
+[X, Y] = meshgrid(unique(x), unique(y)); % Generate grid
+Z = reshape(z, size(X)); % Reshape z to match the grid
 
-
-
-
-
-
-
-
+surf(X, Y, Z);
+xlabel('Obstacle Radius (m)');
+ylabel('CBF Value');
+zlabel('Reward');
+title('NMPC CBF-Value vs Reward');
+colormap('cool')
+colorbar
 
 
 

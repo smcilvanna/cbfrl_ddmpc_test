@@ -1,3 +1,12 @@
+%% Screen Plot a single run
+% data should be generated from function v2
+
+x = run_data.state.Data(:,1);
+y = run_data.state.Data(:,2);
+
+figure()
+plot(x,y)
+
 %% Plot All Trajectories
 
 close all
@@ -30,7 +39,7 @@ for i = 1:size(all_data,1)
     
     hold on;
     
-    viscircles([0.1 4.7], 0.6);
+    %viscircles([0.1 4.7], 0.6);
     
     exportgraphics(f1, "plt.gif", Append=true);
 

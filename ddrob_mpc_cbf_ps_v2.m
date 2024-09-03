@@ -2,16 +2,20 @@ function run_data = ddrob_mpc_cbf_ps_v2(garma, r_obs)
 
     import casadi.*
     
-    T = 0.1; %[s]
+    T = 0.1;                %[s]
     N = 5; 
     rob_diameter = 0.5; 
-    ob_avoid = 2;  % 1 relax-CBF;  2 CBF;  0  BT   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    ob_avoid = 2;               % 1 relax-CBF;  2 CBF;  0  BT   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     % garma = 0.01;     %########## SET FROM BATCH RUN SCRIPT ############
     
-    SO_init = [0.01, 10.0, r_obs];  % <============ SET OBSTACLE LOCATION
+    % want to make the runs similar regardless of obstacle radius
+    % robot start position is origin
+    obs_y = 10 + rob_diameter + r_obs;      % set obstacle closest point always 10m from front of robot start position
+    SO_init = [0.001, obs_y, r_obs];  % <============ SET OBSTACLE LOCATION
 
-    target_goal = [0; 20 ; pi/2];   % <============ SET TARGET 
+    tgt_y = obs_y + r_obs + 5;       % set the target point to 5m beyond far edge of obstacle
+    target_goal = [0; tgt_y ; pi/2];   % <============ SET TARGET 
 
     n_SO = size(SO_init, 1);
     v_max = 1;          % m/s
@@ -99,10 +103,12 @@ function run_data = ddrob_mpc_cbf_ps_v2(garma, r_obs)
     
     % Constraints on states
     i_pos = n_states*(N+1);
-    args.lbx(1:n_states:i_pos,1) = -10;      %state x lower bound
-    args.ubx(1:n_states:i_pos,1) = 10;      %state x upper bound
-    args.lbx(2:n_states:i_pos,1) = -10;      %state y lower bound
-    args.ubx(2:n_states:i_pos,1) = 10;      %state y upper bound
+
+    wslim = 100;
+    args.lbx(1:n_states:i_pos,1) = -wslim;      %state x lower bound
+    args.ubx(1:n_states:i_pos,1) =  wslim;      %state x upper bound
+    args.lbx(2:n_states:i_pos,1) = -wslim;      %state y lower bound
+    args.ubx(2:n_states:i_pos,1) =  wslim;      %state y upper bound
     args.lbx(3:n_states:i_pos,1) = -inf;   %state th lower bound
     args.ubx(3:n_states:i_pos,1) = inf;    %state th upper bound
     
@@ -119,7 +125,7 @@ function run_data = ddrob_mpc_cbf_ps_v2(garma, r_obs)
     %-------------------------------------------
     t0 = 0;
     x0 = [0 ; 0 ; pi/2];    % initial condition.
-    xs = target_goal; % Reference posture.
+    xs = target_goal;       % Reference posture.
     
     x_ol(:,1) = x0; % x_ol contains the history of states
     t(1) = t0;
@@ -163,10 +169,11 @@ function run_data = ddrob_mpc_cbf_ps_v2(garma, r_obs)
     end
     toc
     %%
-    states = x_ol';
-    run_data.state.Data = states;
+    run_data.state.Data = x_ol';
+    run_data.ctrls.Data = u_cl;
     run_data.cbfval = garma;
     run_data.obs = SO_init;
+    run_data.goal = target_goal;
 
 end
 %%
