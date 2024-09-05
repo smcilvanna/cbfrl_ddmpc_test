@@ -1,4 +1,16 @@
-%% Process all runs with rf1 (distance based reward only)
+%% #########################>>>>>> SCRIPTS FOR V2 SWEEPS <<<<<<<#################################################################
+%% Plot Trajectory of each run
+matFilePaths = get_mat_dir;
+for i = 1:size(matFilePaths,1)
+    disp(matFilePaths{i});
+    load(matFilePaths{i}, "all_data");
+    if all_data(1).obs(3) >= 0    % set to zero normally, unless need to resume
+        plot_obstacle_trjs_v2(all_data);
+    end
+end
+
+%% #########################>>>>>> SCRIPTS FOR V1 SWEEPS <<<<<<<#################################################################
+%% Process mat files in dir with RF1 (distance based reward only)
 clc
 outen = false; % <<<<<<<<<<<<<<<<<<<<<<<<<############# SET 'false' to bypass output gif file
 matFilePaths = get_mat_dir;
@@ -24,13 +36,14 @@ for i = 1:size(matFilePaths,1)
     [~, ridx] = min(this_obstacle.dist);    % Find the table index for min dist
     best_cbf = [ best_cbf ; [this_obstacle.obs(ridx) , this_obstacle.cbf(ridx) , this_obstacle.dist(ridx)] ];
 end
-plot_best_cbf(best_cbf)
+
+%plot_best_cbf(best_cbf)
 
 % ####################################################################################################################################
 %%
 plot_best_cbf(best_cbf)
 % ####################################################################################################################################
-%% Loop through .mat files, process with modified rf1
+%% Process mat files in dir with RF1-full
 matFilePaths = get_mat_dir;
 all_tests = [];
 for i = 1:size(matFilePaths,1)
@@ -75,8 +88,7 @@ for i = 1:size(matFilePaths,1)                              % loop through mat f
     this_obstacle.reward(isnan(this_obstacle.reward)) = - 0.15;    % bad run penalty
     all_obstacles = [ all_obstacles ; this_obstacle ] ;         % add to master list
 end
-
-%%
+%
 close all
 all_obstacles = all_obstacles(all_obstacles.cbf <= 1.5, :);
 
@@ -355,7 +367,7 @@ function plot_best_cbf(best_cbf)
 
 end
 
-%%
+%% Function : drawCircle
 function drawCircle(x, y, radius, lineWidth, color)
     % Function to draw a circle on a plot
     % 
@@ -438,15 +450,49 @@ function plot_obstacle_trjs(all_data, all_tests)
     end
 end
 
+%% Plot Trajectory for each different obstacle runs in V2 sweep
 
-
-
-
-
+function plot_obstacle_trjs_v2(all_data)
+    r_obs = all_data(1).obs(3);
+    r_rob = 0.5/2;
+    output_name = "./outputs/tmp/obs_radius_" + sprintf('%.3f', r_obs) + ".gif";
+    runs = size(all_data,1);
+    for i = 1:runs
+        state = all_data(i).state.Data;
+        cbf = all_data(i).cbfval;
+        obs = all_data(i).obs;
+        goal = all_data(i).goal;
+        sep_centre = sqrt(sum((state(:,1:2) - obs(1:2)).^2,2));
+        sep_safe = sep_centre - r_obs - r_rob;     
+        sep_min = min(sep_safe);
+        sep_fin = sqrt(sum((state(end,1:2) - transpose(goal(1:2))).^2,2));
+        good_fin = sep_fin <= 0.2;      % need to be getting within 0.2m of target for good run
+        line_color = [0 0 1];           % blue line for good run
+        if sep_min <= 0 || ~good_fin    % bad run if collision or too far from tgt
+            line_color = [1 0 0];       % red line for bad run
+        end
+        f1 = figure(Visible="off");
+        x = state(:,1); y = state(:,2);
+        plot(x, y, LineWidth=2, Color=line_color);
+        xlabel("x-pos(m)");     ylabel("y-pos(m)");
+        xlim([-15 15]);           ylim([-1 29]);
+        % ttxt = "MPC-CBF : Parameter Value " + cbf; %+ "Min Seperation " + txt_sep + "m" ;
+        ttxt = sprintf("MPC-CBF : Parameter Value %1.3f", cbf);
+        stxt = sprintf("Reached Target : %s | Min Seperation : %.3f", string(good_fin), sep_min);
+        title(ttxt);
+        subtitle(stxt);
+        hold on;
+        drawCircle(obs(1), obs(2), obs(3), 2, 'r');         % add obstacle on plot 
+        plot(goal(1), goal(2), 'xg', 'MarkerSize', 10, 'LineWidth', 2);
+        exportgraphics(f1, output_name, Append=true);       % append to gif
+        dtxt = num2str(i) + " / " + num2str(runs);            % info to console
+        disp(dtxt);
+    end
+end
 %% OLD SECTIONS
-
-
-
+% #########################################################################################################
+% #########################################################################################################
+% #########################################################################################################
 %% Loop Through .mat files and get best values for each #min sep only ##OLD
 % 
 % all_best_cbf = [];
