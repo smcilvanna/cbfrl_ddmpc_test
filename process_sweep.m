@@ -1,12 +1,13 @@
 %% #########################>>>>>> SCRIPTS FOR V2 SWEEPS <<<<<<<#################################################################
-%% Plot Trajectory of each run
+%% Plot Trajectory of each run for v2 sweep
 matFilePaths = get_mat_dir;
-for i = 1:size(matFilePaths,1)
+for i = 36:size(matFilePaths,1)
     disp(matFilePaths{i});
     load(matFilePaths{i}, "all_data");
     if all_data(1).obs(3) >= 0    % set to zero normally, unless need to resume
         plot_obstacle_trjs_v2(all_data);
     end
+    clearvars -except matFilePaths
 end
 
 %% #########################>>>>>> SCRIPTS FOR V1 SWEEPS <<<<<<<#################################################################
@@ -487,6 +488,7 @@ function plot_obstacle_trjs_v2(all_data)
         exportgraphics(f1, output_name, Append=true);       % append to gif
         dtxt = num2str(i) + " / " + num2str(runs);            % info to console
         disp(dtxt);
+        close(f1); % Close figure to release memory
     end
 end
 %% OLD SECTIONS
